@@ -10,6 +10,8 @@ by other authors.*
 
 <br>
 
+See the original repo this is forked from [here](https://github.com/dtolnay/proc-macro-workshop).
+
 ## Contents
 
 - [**Suggested prerequisites**](#suggested-prerequisites)
