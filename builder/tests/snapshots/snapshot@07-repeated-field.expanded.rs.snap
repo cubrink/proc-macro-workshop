@@ -1,0 +1,50 @@
+---
+source: builder/tests/01-snapshots.rs
+description: "Source file: 07-repeated-field.expanded.rs"
+---
+use derive_builder::Builder;
+pub struct Command {
+    executable: String,
+    #[builder(each = "arg")]
+    args: Vec<String>,
+    #[builder(each = "env")]
+    env: Vec<String>,
+    current_dir: Option<String>,
+}
+fn main() {
+    let command = Command::builder()
+        .executable("cargo".to_owned())
+        .arg("build".to_owned())
+        .arg("--release".to_owned())
+        .build()
+        .unwrap();
+    match (&command.executable, &"cargo") {
+        (left_val, right_val) => {
+            if !(*left_val == *right_val) {
+                let kind = ::core::panicking::AssertKind::Eq;
+                ::core::panicking::assert_failed(
+                    kind,
+                    &*left_val,
+                    &*right_val,
+                    ::core::option::Option::None,
+                );
+            }
+        }
+    };
+    match (
+        &command.args,
+        &<[_]>::into_vec(::alloc::boxed::box_new(["build", "--release"])),
+    ) {
+        (left_val, right_val) => {
+            if !(*left_val == *right_val) {
+                let kind = ::core::panicking::AssertKind::Eq;
+                ::core::panicking::assert_failed(
+                    kind,
+                    &*left_val,
+                    &*right_val,
+                    ::core::option::Option::None,
+                );
+            }
+        }
+    };
+}
