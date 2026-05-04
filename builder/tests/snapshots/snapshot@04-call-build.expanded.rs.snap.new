@@ -1,0 +1,38 @@
+---
+source: builder/tests/01-snapshots.rs
+assertion_line: 69
+description: "Source file: 04-call-build.expanded.rs"
+---
+use derive_builder::Builder;
+pub struct Command {
+    executable: String,
+    args: Vec<String>,
+    env: Vec<String>,
+    current_dir: String,
+}
+fn main() {
+    let mut builder = Command::builder();
+    builder.executable("cargo".to_owned());
+    builder
+        .args(
+            <[_]>::into_vec(
+                ::alloc::boxed::box_new(["build".to_owned(), "--release".to_owned()]),
+            ),
+        );
+    builder.env(::alloc::vec::Vec::new());
+    builder.current_dir("..".to_owned());
+    let command = builder.build().unwrap();
+    match (&command.executable, &"cargo") {
+        (left_val, right_val) => {
+            if !(*left_val == *right_val) {
+                let kind = ::core::panicking::AssertKind::Eq;
+                ::core::panicking::assert_failed(
+                    kind,
+                    &*left_val,
+                    &*right_val,
+                    ::core::option::Option::None,
+                );
+            }
+        }
+    };
+}

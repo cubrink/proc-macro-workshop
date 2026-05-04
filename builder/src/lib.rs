@@ -1,8 +1,11 @@
 use proc_macro::TokenStream;
+mod builder;
 
 #[proc_macro_derive(Builder)]
 pub fn derive(input: TokenStream) -> TokenStream {
-    let _ = input;
+    let output: proc_macro::TokenStream = builder::derive(input.into()).into();
 
-    unimplemented!()
+    eprintln!("{}", output);
+
+    output
 }

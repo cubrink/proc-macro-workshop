@@ -1,0 +1,13 @@
+---
+source: builder/tests/01-snapshots.rs
+assertion_line: 69
+description: "Source file: 01-parse.expanded.rs"
+---
+use derive_builder::Builder;
+pub struct Command {
+    executable: String,
+    args: Vec<String>,
+    env: Vec<String>,
+    current_dir: String,
+}
+fn main() {}

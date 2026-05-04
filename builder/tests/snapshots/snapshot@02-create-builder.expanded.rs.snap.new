@@ -1,0 +1,16 @@
+---
+source: builder/tests/01-snapshots.rs
+assertion_line: 69
+description: "Source file: 02-create-builder.expanded.rs"
+---
+use derive_builder::Builder;
+pub struct Command {
+    executable: String,
+    args: Vec<String>,
+    env: Vec<String>,
+    current_dir: String,
+}
+fn main() {
+    let builder = Command::builder();
+    let _ = builder;
+}
