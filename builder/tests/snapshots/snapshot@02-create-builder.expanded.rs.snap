@@ -9,6 +9,23 @@ pub struct Command {
     env: Vec<String>,
     current_dir: String,
 }
+pub struct CommandBuilder {
+    executable: Option<String>,
+    args: Option<Vec<String>>,
+    env: Option<Vec<String>>,
+    current_dir: Option<String>,
+}
+/// Defines a common implementation for builder
+impl Command {
+    pub fn builder() -> CommandBuilder {
+        CommandBuilder {
+            executable: None,
+            args: None,
+            env: None,
+            current_dir: None,
+        }
+    }
+}
 fn main() {
     let builder = Command::builder();
     let _ = builder;

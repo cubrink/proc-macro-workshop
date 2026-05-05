@@ -14,7 +14,7 @@
 
 #[test]
 fn compile_fail() {
-    let t = trybuild::TestCases::new();
+    let _t = trybuild::TestCases::new();
     // t.compile_fail("tests/ui/fail/08-unrecognized-attribute.rs");
 }
 

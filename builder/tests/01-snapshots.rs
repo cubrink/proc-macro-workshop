@@ -40,7 +40,7 @@ fn remove_files(glob_path: &str) {
         let path = path.unwrap();
         match std::fs::remove_file(path.as_os_str()) {
             Ok(_) => println!("Removed {}", path.display()),
-            Err(e) => println!("Error deleting {}: {}", path.display(), e.to_string()),
+            Err(e) => println!("Error deleting {}: {}", path.display(), e),
         }
     }
 }
