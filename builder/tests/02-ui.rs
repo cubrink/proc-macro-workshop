@@ -24,7 +24,7 @@ fn compile_pass() {
     //t.pass("tests/ui/pass/*.rs");
     t.pass("tests/ui/pass/01-parse.rs");
     t.pass("tests/ui/pass/02-create-builder.rs");
-    //t.pass("tests/pass/03-call-setters.rs");
+    t.pass("tests/ui/pass/03-call-setters.rs");
     //t.pass("tests/pass/04-call-build.rs");
     //t.pass("tests/pass/05-method-chaining.rs");
     //t.pass("tests/pass/06-optional-field.rs");
