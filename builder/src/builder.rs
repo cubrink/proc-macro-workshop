@@ -2,21 +2,30 @@ use quote::ToTokens;
 
 /// Whatever Builder ends up needing, this will hold it in a convenient simplified struct
 pub struct BuilderStruct {
-    name: String,
+    name: syn::Ident,
+    fields: Vec<syn::Field>,
 }
 
 impl BuilderStruct {
     #[allow(clippy::unnecessary_wraps)]
-    pub fn new(context: &syn::DeriveInput) -> syn::Result<Self> {
-        let name = context.ident.to_string();
-        let builder = BuilderStruct { name };
+    pub fn new(context: syn::DeriveInput) -> syn::Result<Self> {
+        let name = context.ident;
+        let fields = match context.data {
+            syn::Data::Struct(syn::DataStruct { fields, .. }) => match fields {
+                syn::Fields::Named(syn::FieldsNamed { named, .. }) => named.into_iter().collect(),
+                _ => todo!("Error here"),
+            },
+            _ => todo!(),
+        };
+        let builder = BuilderStruct { name, fields };
         syn::Result::Ok(builder)
     }
 }
 
 impl quote::ToTokens for BuilderStruct {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let struct_name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
+        let struct_name = self.name.clone();
+        // let struct_name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
         let builder_name = syn::Ident::new(
             &format!("{}Builder", self.name),
             proc_macro2::Span::call_site(),
@@ -54,7 +63,7 @@ pub fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     };
 
     // Collect relevant information to implement builder for struct
-    let builder: BuilderStruct = match BuilderStruct::new(&context) {
+    let builder: BuilderStruct = match BuilderStruct::new(context) {
         Ok(i) => i,
         Err(e) => return e.to_compile_error(),
     };
