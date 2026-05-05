@@ -1,5 +1,10 @@
 use quote::ToTokens;
 
+/// Creates a `syn::Result::Err` for a particular span with a display message
+pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T> {
+    syn::Result::Err(syn::Error::new(span, message))
+}
+
 /// Whatever Builder ends up needing, this will hold it in a convenient simplified struct
 pub struct BuilderStruct {
     name: syn::Ident,
@@ -8,17 +13,57 @@ pub struct BuilderStruct {
 
 impl BuilderStruct {
     #[allow(clippy::unnecessary_wraps)]
-    pub fn new(context: syn::DeriveInput) -> syn::Result<Self> {
-        let name = context.ident;
-        let fields = match context.data {
+    pub fn new(context: &syn::DeriveInput) -> syn::Result<Self> {
+        let name = context.ident.clone();
+        let fields = match &context.data {
             syn::Data::Struct(syn::DataStruct { fields, .. }) => match fields {
-                syn::Fields::Named(syn::FieldsNamed { named, .. }) => named.into_iter().collect(),
-                _ => todo!("Error here"),
+                syn::Fields::Named(syn::FieldsNamed { named, .. }) => {
+                    syn::Result::Ok(named.into_iter().cloned().collect())
+                }
+                _ => spanned_error(
+                    context.ident.clone().span(),
+                    "'Builder' must be derived on a struct with named fields.",
+                ),
             },
-            _ => todo!(),
-        };
+            _ => spanned_error(
+                context.ident.clone().span(),
+                "'Builder' must be derived on a struct with named fields.",
+            ),
+        }?;
         let builder = BuilderStruct { name, fields };
         syn::Result::Ok(builder)
+    }
+
+    pub fn create_field_builder_func(&self, field: &syn::Field) -> proc_macro2::TokenStream {
+        let struct_name = self.name.clone();
+        let field_name = field
+            .ident
+            .clone()
+            .expect("Named fields only past this point");
+        let field_type = field.ty.clone();
+
+        let struct_name_string = struct_name.to_string();
+        let field_name_string = field_name.to_string();
+        let doc_lines = vec![
+            format!(" Sets the `{field_name_string}` field of the `{struct_name_string}` builder."),
+            String::new(),
+            String::from(" Args:"),
+            format!(
+                " * `{field_name_string}` - Sets the value of the `{field_name_string}` field."
+            ),
+        ];
+        let doc_attrs = doc_lines
+            .iter()
+            .map(|line| quote::quote! { #[doc = #line] });
+
+        let field_builder_func = quote::quote! {
+            #(#doc_attrs)*
+            fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
+                self.#field_name = Some(#field_name);
+                self
+            }
+        };
+        field_builder_func.into_token_stream()
     }
 }
 
@@ -30,7 +75,16 @@ impl quote::ToTokens for BuilderStruct {
             &format!("{}Builder", self.name),
             proc_macro2::Span::call_site(),
         );
+        let field_builder_funcs: Vec<proc_macro2::TokenStream> = self
+            .fields
+            .iter()
+            .map(|f| self.create_field_builder_func(f))
+            .collect();
+
+        let builder_docstring = format!(" Builder for {struct_name}.");
+        let builder_impl_docstring = format!(" Creates a {builder_name} struct for the object.");
         let generated_tokens: proc_macro2::TokenStream = quote::quote! {
+            #[doc = #builder_docstring]
             pub struct #builder_name {
                 executable: Option<String>,
                 args: Option<Vec<String>>,
@@ -38,8 +92,8 @@ impl quote::ToTokens for BuilderStruct {
                 current_dir: Option<String>,
             }
 
-            /// Defines a common implementation for builder
             impl #struct_name {
+                #[doc = #builder_impl_docstring]
                 pub fn builder() -> #builder_name {
                     #builder_name {
                         executable: None,
@@ -48,6 +102,10 @@ impl quote::ToTokens for BuilderStruct {
                         current_dir: None,
                     }
                 }
+            }
+
+            impl #builder_name {
+                #(#field_builder_funcs)*
             }
         };
         tokens.extend(generated_tokens);
@@ -63,7 +121,7 @@ pub fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     };
 
     // Collect relevant information to implement builder for struct
-    let builder: BuilderStruct = match BuilderStruct::new(context) {
+    let builder: BuilderStruct = match BuilderStruct::new(&context) {
         Ok(i) => i,
         Err(e) => return e.to_compile_error(),
     };

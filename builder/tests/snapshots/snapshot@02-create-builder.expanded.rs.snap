@@ -9,14 +9,15 @@ pub struct Command {
     env: Vec<String>,
     current_dir: String,
 }
+/// Builder for Command.
 pub struct CommandBuilder {
     executable: Option<String>,
     args: Option<Vec<String>>,
     env: Option<Vec<String>>,
     current_dir: Option<String>,
 }
-/// Defines a common implementation for builder
 impl Command {
+    /// Creates a CommandBuilder struct for the object.
     pub fn builder() -> CommandBuilder {
         CommandBuilder {
             executable: None,
@@ -24,6 +25,40 @@ impl Command {
             env: None,
             current_dir: None,
         }
+    }
+}
+impl CommandBuilder {
+    /// Sets the `executable` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `executable` - Sets the value of the `executable` field.
+    fn executable(&mut self, executable: String) -> &mut Self {
+        self.executable = Some(executable);
+        self
+    }
+    /// Sets the `args` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `args` - Sets the value of the `args` field.
+    fn args(&mut self, args: Vec<String>) -> &mut Self {
+        self.args = Some(args);
+        self
+    }
+    /// Sets the `env` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `env` - Sets the value of the `env` field.
+    fn env(&mut self, env: Vec<String>) -> &mut Self {
+        self.env = Some(env);
+        self
+    }
+    /// Sets the `current_dir` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `current_dir` - Sets the value of the `current_dir` field.
+    fn current_dir(&mut self, current_dir: String) -> &mut Self {
+        self.current_dir = Some(current_dir);
+        self
     }
 }
 fn main() {
