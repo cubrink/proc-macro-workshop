@@ -6,7 +6,8 @@ pub struct BuilderStruct {
 }
 
 impl BuilderStruct {
-    pub fn new(context: syn::DeriveInput) -> syn::Result<Self> {
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn new(context: &syn::DeriveInput) -> syn::Result<Self> {
         let name = context.ident.to_string();
         let builder = BuilderStruct { name };
         syn::Result::Ok(builder)
@@ -20,7 +21,7 @@ impl quote::ToTokens for BuilderStruct {
             &format!("{}Builder", self.name),
             proc_macro2::Span::call_site(),
         );
-        let mut generated_tokens: proc_macro2::TokenStream = quote::quote! {
+        let generated_tokens: proc_macro2::TokenStream = quote::quote! {
             pub struct #builder_name {
                 executable: Option<String>,
                 args: Option<Vec<String>>,
@@ -40,7 +41,7 @@ impl quote::ToTokens for BuilderStruct {
                 }
             }
         };
-        tokens.to_tokens(&mut generated_tokens)
+        tokens.extend(generated_tokens);
     }
 }
 
@@ -53,13 +54,11 @@ pub fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     };
 
     // Collect relevant information to implement builder for struct
-    let builder: BuilderStruct = match BuilderStruct::new(context) {
+    let builder: BuilderStruct = match BuilderStruct::new(&context) {
         Ok(i) => i,
         Err(e) => return e.to_compile_error(),
     };
 
     // Generate the block of code to implement struct
-    // let output: proc_macro2::TokenStream = builder.into_token_stream();
-    // output;
-    quote::quote! { #builder }
+    builder.into_token_stream()
 }
