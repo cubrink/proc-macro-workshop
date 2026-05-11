@@ -10,6 +10,11 @@ publish = false
 name = "workshop"
 path = "main.rs"
 
+
+[[bin]]
+name = "expanded"
+path = "bin/expanded.rs"
+
 [dependencies]
 bitfield = { path = "bitfield" }
 derive_builder = { path = "builder" }
