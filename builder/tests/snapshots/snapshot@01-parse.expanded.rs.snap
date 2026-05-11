@@ -60,5 +60,43 @@ impl CommandBuilder {
         self.current_dir = Some(current_dir);
         self
     }
+    /// Builds a Command using the values provided to the builder.
+    ///
+    /// Errors:
+    /// * Returns an error if all fields have not been explicitly set.
+    pub fn build(
+        &mut self,
+    ) -> ::std::result::Result<Command, Box<dyn ::std::error::Error>> {
+        let executable = self
+            .executable
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "executable has not been set.".into()
+            })?;
+        let args = self
+            .args
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "args has not been set.".into()
+            })?;
+        let env = self
+            .env
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "env has not been set.".into()
+            })?;
+        let current_dir = self
+            .current_dir
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "current_dir has not been set.".into()
+            })?;
+        ::std::result::Result::Ok(Command {
+            executable,
+            args,
+            env,
+            current_dir,
+        })
+    }
 }
 fn main() {}

@@ -1,6 +1,6 @@
 ---
 source: builder/tests/01-snapshots.rs
-description: "Source file: 03-call-setters.expanded.rs"
+description: "Source file: 04-call-build.expanded.rs"
 ---
 use derive_builder::Builder;
 pub struct Command {
@@ -110,4 +110,18 @@ fn main() {
         );
     builder.env(::alloc::vec::Vec::new());
     builder.current_dir("..".to_owned());
+    let command = builder.build().unwrap();
+    match (&command.executable, &"cargo") {
+        (left_val, right_val) => {
+            if !(*left_val == *right_val) {
+                let kind = ::core::panicking::AssertKind::Eq;
+                ::core::panicking::assert_failed(
+                    kind,
+                    &*left_val,
+                    &*right_val,
+                    ::core::option::Option::None,
+                );
+            }
+        }
+    };
 }

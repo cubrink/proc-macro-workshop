@@ -12,7 +12,6 @@ pub struct BuilderStruct {
 }
 
 impl BuilderStruct {
-    #[allow(clippy::unnecessary_wraps)]
     pub fn new(context: &syn::DeriveInput) -> syn::Result<Self> {
         let name = context.ident.clone();
         let fields = match &context.data {
@@ -65,6 +64,67 @@ impl BuilderStruct {
         };
         field_builder_func.into_token_stream()
     }
+
+    pub fn create_build_func(&self) -> proc_macro2::TokenStream {
+        // Collect basic info about the struct
+        let struct_name = self.name.clone();
+        let struct_name_string = struct_name.to_string();
+
+        // Create docstring
+        let doc_lines = vec![
+            format!(" Builds a {struct_name_string} using the values provided to the builder."),
+            String::new(),
+            String::from(" Errors:"),
+            format!(" * Returns an error if all fields have not been explicitly set."),
+        ];
+        let doc_attrs = doc_lines
+            .iter()
+            .map(|line| quote::quote! { #[doc = #line] });
+
+        // Create lines of the form
+        //
+        //  let foo = self.foo.ok_or_else(|| { "foo has not been set".into() })?;
+        //
+        // Which will be used in our builder func
+        let extract_field_values: Vec<proc_macro2::TokenStream> = self
+            .fields
+            .iter()
+            .map(|f| {
+                let field_name = f.ident.clone().expect("Expected named fields.");
+                let errmsg = format!("{field_name} has not been set.");
+                quote::quote! {
+                    let #field_name = self.#field_name.clone().ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                        #errmsg.into()
+                    })?;
+                }
+            })
+            .collect();
+        // Create lines
+        //
+        //   foo,
+        //   bar,
+        //
+        // to insert into the struct constructor
+        //
+        let struct_fields: Vec<proc_macro2::TokenStream> = self
+            .fields
+            .iter()
+            .map(|f| {
+                let field_name = f.ident.clone().expect("Expected named fields.");
+                quote::quote! { #field_name, }
+            })
+            .collect();
+        let build_func: proc_macro2::TokenStream = quote::quote! {
+            #(#doc_attrs)*
+            pub fn build(&mut self) -> ::std::result::Result<#struct_name, Box<dyn ::std::error::Error>> {
+                #(#extract_field_values)*
+                ::std::result::Result::Ok(#struct_name {
+                    #(#struct_fields)*
+                })
+            }
+        };
+        build_func.into_token_stream()
+    }
 }
 
 impl quote::ToTokens for BuilderStruct {
@@ -80,9 +140,9 @@ impl quote::ToTokens for BuilderStruct {
             .iter()
             .map(|f| self.create_field_builder_func(f))
             .collect();
-
         let builder_docstring = format!(" Builder for {struct_name}.");
         let builder_impl_docstring = format!(" Creates a {builder_name} struct for the object.");
+        let build_func = self.create_build_func();
         let generated_tokens: proc_macro2::TokenStream = quote::quote! {
             #[doc = #builder_docstring]
             pub struct #builder_name {
@@ -106,6 +166,8 @@ impl quote::ToTokens for BuilderStruct {
 
             impl #builder_name {
                 #(#field_builder_funcs)*
+
+                #build_func
             }
         };
         tokens.extend(generated_tokens);
