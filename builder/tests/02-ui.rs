@@ -26,7 +26,7 @@ fn compile_pass() {
     t.pass("tests/ui/pass/02-create-builder.rs");
     t.pass("tests/ui/pass/03-call-setters.rs");
     t.pass("tests/ui/pass/04-call-build.rs");
-    //t.pass("tests/ui/pass/05-method-chaining.rs");
+    t.pass("tests/ui/pass/05-method-chaining.rs");
     //t.pass("tests/ui/pass/06-optional-field.rs");
     //t.pass("tests/ui/pass/07-repeated-field.rs");
     //t.pass("tests/ui/pass/09-redefined-prelude-types.rs");
