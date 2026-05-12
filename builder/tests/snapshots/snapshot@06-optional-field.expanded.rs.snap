@@ -1,0 +1,125 @@
+---
+source: builder/tests/01-snapshots.rs
+description: "Source file: 06-optional-field.expanded.rs"
+---
+use derive_builder::Builder;
+pub struct Command {
+    executable: String,
+    args: Vec<String>,
+    env: Vec<String>,
+    current_dir: Option<String>,
+}
+/// Builder for Command.
+pub struct CommandBuilder {
+    executable: Option<String>,
+    args: Option<Vec<String>>,
+    env: Option<Vec<String>>,
+    current_dir: Option<String>,
+}
+impl Command {
+    /// Creates a CommandBuilder struct for the object.
+    pub fn builder() -> CommandBuilder {
+        CommandBuilder {
+            executable: None,
+            args: None,
+            env: None,
+            current_dir: None,
+        }
+    }
+}
+impl CommandBuilder {
+    /// Sets the `executable` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `executable` - Sets the value of the `executable` field.
+    fn executable(&mut self, executable: String) -> &mut Self {
+        self.executable = Some(executable);
+        self
+    }
+    /// Sets the `args` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `args` - Sets the value of the `args` field.
+    fn args(&mut self, args: Vec<String>) -> &mut Self {
+        self.args = Some(args);
+        self
+    }
+    /// Sets the `env` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `env` - Sets the value of the `env` field.
+    fn env(&mut self, env: Vec<String>) -> &mut Self {
+        self.env = Some(env);
+        self
+    }
+    /// Sets the `current_dir` field of the `Command` builder.
+    ///
+    /// Args:
+    /// * `current_dir` - Sets the value of the `current_dir` field.
+    fn current_dir(&mut self, current_dir: String) -> &mut Self {
+        self.current_dir = Some(current_dir);
+        self
+    }
+    /// Builds a Command using the values provided to the builder.
+    ///
+    /// Errors:
+    /// * Returns an error if all fields have not been explicitly set.
+    pub fn build(
+        &mut self,
+    ) -> ::std::result::Result<Command, Box<dyn ::std::error::Error>> {
+        let executable = self
+            .executable
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "executable has not been set.".into()
+            })?;
+        let args = self
+            .args
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "args has not been set.".into()
+            })?;
+        let env = self
+            .env
+            .clone()
+            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                "env has not been set.".into()
+            })?;
+        let current_dir = self.current_dir.clone().or(::std::option::Option::None);
+        ::std::result::Result::Ok(Command {
+            executable,
+            args,
+            env,
+            current_dir,
+        })
+    }
+}
+fn main() {
+    let command = Command::builder()
+        .executable("cargo".to_owned())
+        .args(
+            <[_]>::into_vec(
+                ::alloc::boxed::box_new(["build".to_owned(), "--release".to_owned()]),
+            ),
+        )
+        .env(::alloc::vec::Vec::new())
+        .build()
+        .unwrap();
+    if !command.current_dir.is_none() {
+        ::core::panicking::panic("assertion failed: command.current_dir.is_none()")
+    }
+    let command = Command::builder()
+        .executable("cargo".to_owned())
+        .args(
+            <[_]>::into_vec(
+                ::alloc::boxed::box_new(["build".to_owned(), "--release".to_owned()]),
+            ),
+        )
+        .env(::alloc::vec::Vec::new())
+        .current_dir("..".to_owned())
+        .build()
+        .unwrap();
+    if !command.current_dir.is_some() {
+        ::core::panicking::panic("assertion failed: command.current_dir.is_some()")
+    }
+}

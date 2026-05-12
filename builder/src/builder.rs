@@ -5,6 +5,33 @@ pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T
     syn::Result::Err(syn::Error::new(span, message))
 }
 
+#[allow(dead_code)]
+fn is_option_type(syntype: &syn::Type) -> bool {
+    match syntype {
+        syn::Type::Path(syn::TypePath { path, .. }) => match path { 
+            _ => todo!("Is a type path") 
+        },
+        _ => todo!("Not a type path")
+    }
+}
+
+fn get_option_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
+    if let syn::Type::Path(syn::TypePath { qself: None, path}) = syntype
+        && path.segments.len() == 1
+        && let Some(last_segment) = path.segments.last()
+        && last_segment.ident == "Option"
+        && let syn::PathArguments::AngleBracketed(bracket_args) = &last_segment.arguments
+        && let syn::AngleBracketedGenericArguments { args, .. } = bracket_args
+        && args.len() == 1
+        && let Some(bracket_arg) = args.last()
+        && let syn::GenericArgument::Type(inner) = bracket_arg
+    {
+        Some(inner)
+    } else {
+        None
+    }
+}
+
 /// Whatever Builder ends up needing, this will hold it in a convenient simplified struct
 pub struct BuilderStruct {
     name: syn::Ident,
@@ -55,11 +82,23 @@ impl BuilderStruct {
             .iter()
             .map(|line| quote::quote! { #[doc = #line] });
 
-        let field_builder_func = quote::quote! {
-            #(#doc_attrs)*
-            fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
-                self.#field_name = Some(#field_name);
-                self
+        let field_builder_func = if let Some(inner) = get_option_inner_type(&field_type) {
+            quote::quote! {
+                #(#doc_attrs)*
+                fn #field_name(&mut self, #field_name: #inner) -> &mut Self {
+                    self.#field_name = Some(#field_name);
+                    self
+                }
+            }
+        }
+        else 
+        {
+            quote::quote! {
+                #(#doc_attrs)*
+                fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
+                    self.#field_name = Some(#field_name);
+                    self
+                }
             }
         };
         field_builder_func.into_token_stream()
@@ -91,11 +130,18 @@ impl BuilderStruct {
             .iter()
             .map(|f| {
                 let field_name = f.ident.clone().expect("Expected named fields.");
-                let errmsg = format!("{field_name} has not been set.");
-                quote::quote! {
-                    let #field_name = self.#field_name.clone().ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                        #errmsg.into()
-                    })?;
+                if get_option_inner_type(&f.ty).is_some() {
+                    quote::quote! {
+                        let #field_name = self.#field_name.clone().or(::std::option::Option::None);        
+                    }
+                }
+                else {
+                    let errmsg = format!("{field_name} has not been set.");
+                    quote::quote! {
+                        let #field_name = self.#field_name.clone().ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
+                            #errmsg.into()
+                        })?;
+                    }
                 }
             })
             .collect();
