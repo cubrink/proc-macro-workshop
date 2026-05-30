@@ -1,13 +1,15 @@
 ---
 source: builder/tests/01-snapshots.rs
-description: "Source file: 05-method-chaining.expanded.rs"
+description: "Source file: 07-repeated-field.expanded.rs"
 ---
 use derive_builder::Builder;
 pub struct Command {
     executable: String,
+    #[builder(each = "arg")]
     args: Vec<String>,
+    #[builder(each = "env")]
     env: Vec<String>,
-    current_dir: String,
+    current_dir: Option<String>,
 }
 /// Builder for Command.
 pub struct CommandBuilder {
@@ -44,20 +46,20 @@ impl CommandBuilder {
         self.args = Some(args);
         self
     }
-    /// Sets the `env` field of the `Command` builder.
-    ///
-    /// Args:
-    /// * `env` - Sets the value of the `env` field.
-    fn env(&mut self, env: Vec<String>) -> &mut Self {
-        self.env = Some(env);
-        self
-    }
     /// Sets the `current_dir` field of the `Command` builder.
     ///
     /// Args:
     /// * `current_dir` - Sets the value of the `current_dir` field.
     fn current_dir(&mut self, current_dir: String) -> &mut Self {
         self.current_dir = Some(current_dir);
+        self
+    }
+    fn arg(&mut self, arg: String) -> &mut Self {
+        self.args.get_or_insert_with(::std::vec::Vec::new).push(arg);
+        self
+    }
+    fn env(&mut self, env: String) -> &mut Self {
+        self.env.get_or_insert_with(::std::vec::Vec::new).push(env);
         self
     }
     /// Builds a Command using the values provided to the builder.
@@ -75,12 +77,7 @@ impl CommandBuilder {
             })?;
         let args = self.args.get_or_insert_with(::std::vec::Vec::new).clone();
         let env = self.env.get_or_insert_with(::std::vec::Vec::new).clone();
-        let current_dir = self
-            .current_dir
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "current_dir has not been set.".into()
-            })?;
+        let current_dir = self.current_dir.clone().or(::std::option::Option::None);
         ::std::result::Result::Ok(Command {
             executable,
             args,
@@ -92,19 +89,32 @@ impl CommandBuilder {
 fn main() {
     let command = Command::builder()
         .executable("cargo".to_owned())
-        .args(
-            ::alloc::boxed::box_assume_init_into_vec_unsafe(
-                ::alloc::intrinsics::write_box_via_move(
-                    ::alloc::boxed::Box::new_uninit(),
-                    ["build".to_owned(), "--release".to_owned()],
-                ),
-            ),
-        )
-        .env(::alloc::vec::Vec::new())
-        .current_dir("..".to_owned())
+        .arg("build".to_owned())
+        .arg("--release".to_owned())
         .build()
         .unwrap();
     match (&command.executable, &"cargo") {
+        (left_val, right_val) => {
+            if !(*left_val == *right_val) {
+                let kind = ::core::panicking::AssertKind::Eq;
+                ::core::panicking::assert_failed(
+                    kind,
+                    &*left_val,
+                    &*right_val,
+                    ::core::option::Option::None,
+                );
+            }
+        }
+    };
+    match (
+        &command.args,
+        &::alloc::boxed::box_assume_init_into_vec_unsafe(
+            ::alloc::intrinsics::write_box_via_move(
+                ::alloc::boxed::Box::new_uninit(),
+                ["build", "--release"],
+            ),
+        ),
+    ) {
         (left_val, right_val) => {
             if !(*left_val == *right_val) {
                 let kind = ::core::panicking::AssertKind::Eq;

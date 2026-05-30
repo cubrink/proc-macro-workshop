@@ -1,4 +1,6 @@
 use quote::ToTokens;
+use syn::spanned::Spanned;
+use std::collections::HashMap;
 
 /// Creates a `syn::Result::Err` for a particular span with a display message
 pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T> {
@@ -8,15 +10,15 @@ pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T
 #[allow(dead_code)]
 fn is_option_type(syntype: &syn::Type) -> bool {
     match syntype {
-        syn::Type::Path(syn::TypePath { path, .. }) => match path { 
-            _ => todo!("Is a type path") 
+        syn::Type::Path(syn::TypePath { path, .. }) => match path {
+            _ => todo!("Is a type path"),
         },
-        _ => todo!("Not a type path")
+        _ => todo!("Not a type path"),
     }
 }
 
 fn get_option_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
-    if let syn::Type::Path(syn::TypePath { qself: None, path}) = syntype
+    if let syn::Type::Path(syn::TypePath { qself: None, path }) = syntype
         && path.segments.len() == 1
         && let Some(last_segment) = path.segments.last()
         && last_segment.ident == "Option"
@@ -32,16 +34,173 @@ fn get_option_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
     }
 }
 
+fn get_vec_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
+    if let syn::Type::Path(syn::TypePath { qself: None, path }) = syntype
+        && path.segments.len() == 1
+        && let Some(last_segment) = path.segments.last()
+        && last_segment.ident == "Vec"
+        && let syn::PathArguments::AngleBracketed(bracket_args) = &last_segment.arguments
+        && let syn::AngleBracketedGenericArguments { args, .. } = bracket_args
+        && args.len() == 1
+        && let Some(bracket_arg) = args.last()
+        && let syn::GenericArgument::Type(inner) = bracket_arg
+    {
+        Some(inner)
+    } else {
+        None
+    }
+}
+
+// Example of an attribute on a field
+//
+// Field [Some(Ident { ident: "env", span: #0 bytes(1496..1499) })]: [
+//     Attribute {
+//         pound_token: Pound,
+//         style: AttrStyle::Outer,
+//         bracket_token: Bracket,
+//         meta: Meta::List {
+//             path: Path {
+//                 leading_colon: None,
+//                 segments: [
+//                     PathSegment {
+//                         ident: Ident {
+//                             ident: "builder",
+//                             span: #0 bytes(1469..1476),
+//                         },
+//                         arguments: PathArguments::None,
+//                     },
+//                 ],
+//             },
+//             delimiter: MacroDelimiter::Paren(
+//                 Paren,
+//             ),
+//             tokens: TokenStream [
+//                 Ident {
+//                     ident: "each",
+//                     span: #0 bytes(1477..1481),
+//                 },
+//                 Punct {
+//                     ch: '=',
+//                     spacing: Alone,
+//                     span: #0 bytes(1482..1483),
+//                 },
+//                 Literal {
+//                     kind: Str,
+//                     symbol: "env",
+//                     suffix: None,
+//                     span: #0 bytes(1484..1489),
+//                 },
+//             ],
+//         },
+//     },
+// ]
+
+fn filter_field_attribute<'a>(
+    attr: &'a syn::Attribute,
+    attr_name: &str,
+) -> Option<&'a syn::Attribute> {
+    if let syn::Meta::List(syn::MetaList { path, .. }) = &attr.meta
+        && path.segments.len() == 1
+        && path.segments.last().is_some()
+        && path.segments.last().unwrap().ident.to_string() == attr_name
+    {
+        Some(attr)
+    } else {
+        None
+    }
+}
+
+/// Represents an attribute placed on field 
+#[derive(Debug, Clone)]
+pub struct KvFieldAttribute {
+    #[allow(dead_code)]
+    attr: String,
+    key: String,
+    value: String,
+    #[allow(dead_code)]
+    span: proc_macro2::Span,
+}
+
+impl TryFrom<&syn::Attribute> for KvFieldAttribute {
+    type Error = syn::Error;
+    
+    fn try_from(attribute: &syn::Attribute) -> Result<Self, Self::Error> {
+        if let syn::Meta::List(syn::MetaList { path, tokens, .. }) = &attribute.meta {
+            if path.segments.len() != 1 {
+                let message = "Cannot read field attribute path with multple segments.";
+                spanned_error::<String>(attribute.span(), message)?;
+            }
+            let attr = match path.segments.last() {
+                None => {
+                    let message = "Attribute must go be placed on named field.";
+                    spanned_error(attribute.span(), message)
+                },
+                Some(attr_name) => {
+                    Ok(attr_name.ident.to_string())
+                },
+            }?;
+    
+            let symbols: Vec<_> = tokens
+                .clone()
+                .into_iter()
+                .collect();
+            if symbols.len() != 3 {
+                let message = format!("In field attribute {attr}, unexpected number of symbols: expected 3, found {}", symbols.len());
+                spanned_error(tokens.span(), &message)?;
+            }
+            let key = match &symbols[0] {
+                proc_macro2::TokenTree::Ident(ident) => {
+                    Ok(ident.to_string())
+                },
+                _ => {
+                    let message = "Expected ident for key of field";
+                    spanned_error(symbols[0].span(), message)
+                }
+            }?;
+            match &symbols[1] {
+                proc_macro2::TokenTree::Punct(punct) => {
+                    if punct.to_string() != "=" {
+                        let message = format!("Expected an '=' operator, got '{punct}'");
+                        spanned_error(symbols[1].span(), &message)?
+                    }
+                },
+                _ => {
+                    let message = "Expected identifier for key of field";
+                    spanned_error(symbols[1].span(), message)?
+                }
+            };
+            let value = match &symbols[2] {
+                proc_macro2::TokenTree::Literal(literal) => {
+                    Ok(literal.to_string().replace("\"", ""))
+                },
+                _ => {
+                    let message = "Expected literal for value of field";
+                    spanned_error(symbols[0].span(), message)
+                }
+            }?;
+            let span = attribute.span();
+    
+            Ok( Self { attr, key, value, span } )
+        }
+        else {
+            let message = format!("Could not parse metadata for attribute: {:#?}", &attribute.meta);
+            spanned_error(attribute.meta.span(), &message)
+        }
+    }
+}
+
 /// Whatever Builder ends up needing, this will hold it in a convenient simplified struct
+#[derive(Debug)]
 pub struct BuilderStruct {
     name: syn::Ident,
     fields: Vec<syn::Field>,
+    field_attr_each: HashMap<syn::Ident, KvFieldAttribute>,
 }
 
 impl BuilderStruct {
     pub fn new(context: &syn::DeriveInput) -> syn::Result<Self> {
-        let name = context.ident.clone();
-        let fields = match &context.data {
+        let name: syn::Ident = context.ident.clone();
+        let fields: Vec<syn::Field> = match &context.data {
             syn::Data::Struct(syn::DataStruct { fields, .. }) => match fields {
                 syn::Fields::Named(syn::FieldsNamed { named, .. }) => {
                     syn::Result::Ok(named.into_iter().cloned().collect())
@@ -56,8 +215,83 @@ impl BuilderStruct {
                 "'Builder' must be derived on a struct with named fields.",
             ),
         }?;
-        let builder = BuilderStruct { name, fields };
+        let mut field_attr_each: HashMap<syn::Ident, KvFieldAttribute> = HashMap::new();
+        // let attrs = &context.attrs;
+        type KvFieldResult = Result<KvFieldAttribute, syn::Error>;
+        for f in &fields {
+            // eprintln!("Field [{:?}]: {:#?}", f.ident, f.attrs);
+            let (attrs, errs): (Vec<KvFieldResult>, Vec<KvFieldResult>)  = f
+                .attrs
+                .iter()
+                .filter_map(|a| {
+                    let attr = filter_field_attribute(a, "builder");
+                    attr
+                })
+                .map(KvFieldAttribute::try_from)
+                .partition(|r: &KvFieldResult| r.is_ok());
+
+            let attrs: Vec<_> = attrs.into_iter().flatten().collect();
+            let errs: Vec<_> = errs.into_iter().flat_map(|r| r.err()).collect();
+            if let Some(err) = errs.first() {
+                let syn_error = err.clone();
+                syn::Result::Err(syn_error)?
+            }
+            
+
+            let attr_each: Vec<_> = attrs
+                .iter()
+                .cloned()
+                .filter(|a| a.key == "each")
+                .collect();
+
+            match attr_each.len() {
+                0 => {},
+                1 => {
+                    let field_attr = attr_each.first().clone().unwrap().clone();
+                    field_attr_each.insert(f.ident.clone().unwrap(), field_attr.clone());     
+                },
+                _ => {
+                    let message = "Expected at mosty one 'each' attribute on field.";
+                    spanned_error(f.span(), message)?
+                }
+            }
+        }
+
+        let builder = BuilderStruct { name, fields, field_attr_each };
         syn::Result::Ok(builder)
+    }
+
+    pub fn create_field_builder_each_func(&self, ident: &syn::Ident, kv_field_attribute: &KvFieldAttribute) -> Option<proc_macro2::TokenStream> {
+        if kv_field_attribute.key != "each" {
+            return None;
+        }
+
+        let field_each_name = syn::Ident::new(&kv_field_attribute.value, proc_macro2::Span::call_site());
+        let field = self.fields
+            .iter()
+            .filter(|f| f.ident.clone().unwrap().to_string() == ident.to_string())
+            .next()
+            .expect(&format!("Unknown identifier {} for attribute 'each'.", ident.to_string()));
+        let field_type = field.ty.clone();
+        let field_name = field.ident.clone().expect("Expected a named field");
+        let inner = if let Some(inner) = get_vec_inner_type(&field_type) {
+            inner 
+        } else {
+            return None;
+        };
+
+        let field_builder_each_func = quote::quote! { 
+            fn #field_each_name(&mut self, #field_each_name: #inner) -> &mut Self {
+                // self.#field_name.get_or_insert_with(::std::vec::Vec::new).push(#field_each_name);
+                self.#field_name
+                    .get_or_insert_with(::std::vec::Vec::new)
+                    .push(#field_each_name);
+                    // .push("Hello world".to_string());
+                self
+            }
+        };
+
+        Some(field_builder_each_func.into_token_stream())
     }
 
     pub fn create_field_builder_func(&self, field: &syn::Field) -> proc_macro2::TokenStream {
@@ -90,9 +324,7 @@ impl BuilderStruct {
                     self
                 }
             }
-        }
-        else 
-        {
+        } else {
             quote::quote! {
                 #(#doc_attrs)*
                 fn #field_name(&mut self, #field_name: #field_type) -> &mut Self {
@@ -132,7 +364,12 @@ impl BuilderStruct {
                 let field_name = f.ident.clone().expect("Expected named fields.");
                 if get_option_inner_type(&f.ty).is_some() {
                     quote::quote! {
-                        let #field_name = self.#field_name.clone().or(::std::option::Option::None);        
+                        let #field_name = self.#field_name.clone().or(::std::option::Option::None);
+                    }
+                }
+                else if get_vec_inner_type(&f.ty).is_some() {
+                    quote::quote! {
+                        let #field_name = self.#field_name.get_or_insert_with(::std::vec::Vec::new).clone();
                     }
                 }
                 else {
@@ -181,10 +418,26 @@ impl quote::ToTokens for BuilderStruct {
             &format!("{}Builder", self.name),
             proc_macro2::Span::call_site(),
         );
+        let each_func_names: Vec<String> = self
+            .field_attr_each
+            .values()
+            .map(|kv| kv.value.clone())
+            .collect();
         let field_builder_funcs: Vec<proc_macro2::TokenStream> = self
             .fields
             .iter()
+            .filter(|f| {
+                let field_name = f.ident.clone().unwrap().to_string();
+                !each_func_names.contains(&field_name)
+            })
             .map(|f| self.create_field_builder_func(f))
+            .collect();
+        let field_builder_each_funcs: Vec<proc_macro2::TokenStream> = self
+            .field_attr_each
+            .iter()
+            .flat_map(|(ident,kv_attr_field)| {
+                self.create_field_builder_each_func(ident, kv_attr_field) 
+            })
             .collect();
         let builder_docstring = format!(" Builder for {struct_name}.");
         let builder_impl_docstring = format!(" Creates a {builder_name} struct for the object.");
@@ -213,6 +466,8 @@ impl quote::ToTokens for BuilderStruct {
             impl #builder_name {
                 #(#field_builder_funcs)*
 
+                #(#field_builder_each_funcs)*
+
                 #build_func
             }
         };
@@ -233,6 +488,8 @@ pub fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
         Ok(i) => i,
         Err(e) => return e.to_compile_error(),
     };
+
+    // eprintln!("{builder:#?}");
 
     // Generate the block of code to implement struct
     builder.into_token_stream()

@@ -73,18 +73,8 @@ impl CommandBuilder {
             .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
                 "executable has not been set.".into()
             })?;
-        let args = self
-            .args
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "args has not been set.".into()
-            })?;
-        let env = self
-            .env
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "env has not been set.".into()
-            })?;
+        let args = self.args.get_or_insert_with(::std::vec::Vec::new).clone();
+        let env = self.env.get_or_insert_with(::std::vec::Vec::new).clone();
         let current_dir = self
             .current_dir
             .clone()

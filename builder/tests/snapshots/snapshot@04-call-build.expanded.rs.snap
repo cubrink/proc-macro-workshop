@@ -73,18 +73,8 @@ impl CommandBuilder {
             .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
                 "executable has not been set.".into()
             })?;
-        let args = self
-            .args
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "args has not been set.".into()
-            })?;
-        let env = self
-            .env
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "env has not been set.".into()
-            })?;
+        let args = self.args.get_or_insert_with(::std::vec::Vec::new).clone();
+        let env = self.env.get_or_insert_with(::std::vec::Vec::new).clone();
         let current_dir = self
             .current_dir
             .clone()
@@ -104,8 +94,11 @@ fn main() {
     builder.executable("cargo".to_owned());
     builder
         .args(
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new(["build".to_owned(), "--release".to_owned()]),
+            ::alloc::boxed::box_assume_init_into_vec_unsafe(
+                ::alloc::intrinsics::write_box_via_move(
+                    ::alloc::boxed::Box::new_uninit(),
+                    ["build".to_owned(), "--release".to_owned()],
+                ),
             ),
         );
     builder.env(::alloc::vec::Vec::new());
