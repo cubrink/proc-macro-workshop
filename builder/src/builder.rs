@@ -354,7 +354,7 @@ impl BuilderStruct {
             .collect();
         let build_func: proc_macro2::TokenStream = quote::quote! {
             #(#doc_attrs)*
-            pub fn build(&mut self) -> ::std::result::Result<#struct_name, Box<dyn ::std::error::Error>> {
+            pub fn build(&mut self) -> ::std::result::Result<#struct_name, ::std::boxed::Box<dyn ::std::error::Error>> {
                 #(#extract_field_values)*
                 ::std::result::Result::Ok(#struct_name {
                     #(#struct_fields)*
@@ -399,10 +399,10 @@ impl quote::ToTokens for BuilderStruct {
         let generated_tokens: proc_macro2::TokenStream = quote::quote! {
             #[doc = #builder_docstring]
             pub struct #builder_name {
-                executable: Option<String>,
-                args: Option<Vec<String>>,
-                env: Option<Vec<String>>,
-                current_dir: Option<String>,
+                executable: ::std::option::Option<::std::string::String>,
+                args: ::std::option::Option<std::vec::Vec<::std::string::String>>,
+                env: ::std::option::Option<::std::vec::Vec<std::string::String>>,
+                current_dir: ::std::option::Option<std::string::String>,
             }
 
             impl #struct_name {

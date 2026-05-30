@@ -11,10 +11,10 @@ pub struct Command {
 }
 /// Builder for Command.
 pub struct CommandBuilder {
-    executable: Option<String>,
-    args: Option<Vec<String>>,
-    env: Option<Vec<String>>,
-    current_dir: Option<String>,
+    executable: ::std::option::Option<::std::string::String>,
+    args: ::std::option::Option<std::vec::Vec<::std::string::String>>,
+    env: ::std::option::Option<::std::vec::Vec<std::string::String>>,
+    current_dir: ::std::option::Option<std::string::String>,
 }
 impl Command {
     /// Creates a CommandBuilder struct for the object.
@@ -66,7 +66,7 @@ impl CommandBuilder {
     /// * Returns an error if all fields have not been explicitly set.
     pub fn build(
         &mut self,
-    ) -> ::std::result::Result<Command, Box<dyn ::std::error::Error>> {
+    ) -> ::std::result::Result<Command, ::std::boxed::Box<dyn ::std::error::Error>> {
         let executable = self
             .executable
             .clone()

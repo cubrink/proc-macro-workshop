@@ -1,13 +1,15 @@
 ---
 source: builder/tests/01-snapshots.rs
-description: "Source file: 01-parse.expanded.rs"
+description: "Source file: 09-redefined-prelude-types.expanded.rs"
 ---
 use derive_builder::Builder;
+type Option = ();
+type Some = ();
+type None = ();
+type Result = ();
+type Box = ();
 pub struct Command {
     executable: String,
-    args: Vec<String>,
-    env: Vec<String>,
-    current_dir: String,
 }
 /// Builder for Command.
 pub struct CommandBuilder {
@@ -36,30 +38,6 @@ impl CommandBuilder {
         self.executable = Some(executable);
         self
     }
-    /// Sets the `args` field of the `Command` builder.
-    ///
-    /// Args:
-    /// * `args` - Sets the value of the `args` field.
-    fn args(&mut self, args: Vec<String>) -> &mut Self {
-        self.args = Some(args);
-        self
-    }
-    /// Sets the `env` field of the `Command` builder.
-    ///
-    /// Args:
-    /// * `env` - Sets the value of the `env` field.
-    fn env(&mut self, env: Vec<String>) -> &mut Self {
-        self.env = Some(env);
-        self
-    }
-    /// Sets the `current_dir` field of the `Command` builder.
-    ///
-    /// Args:
-    /// * `current_dir` - Sets the value of the `current_dir` field.
-    fn current_dir(&mut self, current_dir: String) -> &mut Self {
-        self.current_dir = Some(current_dir);
-        self
-    }
     /// Builds a Command using the values provided to the builder.
     ///
     /// Errors:
@@ -73,20 +51,7 @@ impl CommandBuilder {
             .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
                 "executable has not been set.".into()
             })?;
-        let args = self.args.get_or_insert_with(::std::vec::Vec::new).clone();
-        let env = self.env.get_or_insert_with(::std::vec::Vec::new).clone();
-        let current_dir = self
-            .current_dir
-            .clone()
-            .ok_or_else(|| -> ::std::boxed::Box<dyn std::error::Error> {
-                "current_dir has not been set.".into()
-            })?;
-        ::std::result::Result::Ok(Command {
-            executable,
-            args,
-            env,
-            current_dir,
-        })
+        ::std::result::Result::Ok(Command { executable })
     }
 }
 fn main() {}
