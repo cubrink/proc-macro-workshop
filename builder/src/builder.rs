@@ -187,6 +187,19 @@ impl BuilderStruct {
                 .cloned()
                 .filter(|a| a.key == "each")
                 .collect();
+            let attr_not_each: Vec<_> = attrs
+                .iter()
+                .cloned()
+                .filter(|a| a.key != "each")
+                .collect();
+            if let Some(not_each_attr) = attr_not_each.first() {
+                spanned_error(
+                    not_each_attr.span, 
+           "expected `builder(each = \"...\")`"
+                )?;
+            }
+            
+
 
             match attr_each.len() {
                 0 => {},
