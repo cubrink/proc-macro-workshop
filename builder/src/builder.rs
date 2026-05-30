@@ -7,16 +7,6 @@ pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T
     syn::Result::Err(syn::Error::new(span, message))
 }
 
-#[allow(dead_code)]
-fn is_option_type(syntype: &syn::Type) -> bool {
-    match syntype {
-        syn::Type::Path(syn::TypePath { path, .. }) => match path {
-            _ => todo!("Is a type path"),
-        },
-        _ => todo!("Not a type path"),
-    }
-}
-
 fn get_option_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
     if let syn::Type::Path(syn::TypePath { qself: None, path }) = syntype
         && path.segments.len() == 1
@@ -50,50 +40,6 @@ fn get_vec_inner_type(syntype: &syn::Type) -> Option<&syn::Type> {
         None
     }
 }
-
-// Example of an attribute on a field
-//
-// Field [Some(Ident { ident: "env", span: #0 bytes(1496..1499) })]: [
-//     Attribute {
-//         pound_token: Pound,
-//         style: AttrStyle::Outer,
-//         bracket_token: Bracket,
-//         meta: Meta::List {
-//             path: Path {
-//                 leading_colon: None,
-//                 segments: [
-//                     PathSegment {
-//                         ident: Ident {
-//                             ident: "builder",
-//                             span: #0 bytes(1469..1476),
-//                         },
-//                         arguments: PathArguments::None,
-//                     },
-//                 ],
-//             },
-//             delimiter: MacroDelimiter::Paren(
-//                 Paren,
-//             ),
-//             tokens: TokenStream [
-//                 Ident {
-//                     ident: "each",
-//                     span: #0 bytes(1477..1481),
-//                 },
-//                 Punct {
-//                     ch: '=',
-//                     spacing: Alone,
-//                     span: #0 bytes(1482..1483),
-//                 },
-//                 Literal {
-//                     kind: Str,
-//                     symbol: "env",
-//                     suffix: None,
-//                     span: #0 bytes(1484..1489),
-//                 },
-//             ],
-//         },
-//     },
-// ]
 
 fn filter_field_attribute<'a>(
     attr: &'a syn::Attribute,
@@ -216,10 +162,8 @@ impl BuilderStruct {
             ),
         }?;
         let mut field_attr_each: HashMap<syn::Ident, KvFieldAttribute> = HashMap::new();
-        // let attrs = &context.attrs;
         type KvFieldResult = Result<KvFieldAttribute, syn::Error>;
         for f in &fields {
-            // eprintln!("Field [{:?}]: {:#?}", f.ident, f.attrs);
             let (attrs, errs): (Vec<KvFieldResult>, Vec<KvFieldResult>)  = f
                 .attrs
                 .iter()
@@ -282,11 +226,9 @@ impl BuilderStruct {
 
         let field_builder_each_func = quote::quote! { 
             fn #field_each_name(&mut self, #field_each_name: #inner) -> &mut Self {
-                // self.#field_name.get_or_insert_with(::std::vec::Vec::new).push(#field_each_name);
                 self.#field_name
                     .get_or_insert_with(::std::vec::Vec::new)
                     .push(#field_each_name);
-                    // .push("Hello world".to_string());
                 self
             }
         };
@@ -413,7 +355,6 @@ impl BuilderStruct {
 impl quote::ToTokens for BuilderStruct {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let struct_name = self.name.clone();
-        // let struct_name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
         let builder_name = syn::Ident::new(
             &format!("{}Builder", self.name),
             proc_macro2::Span::call_site(),
@@ -488,8 +429,6 @@ pub fn derive(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
         Ok(i) => i,
         Err(e) => return e.to_compile_error(),
     };
-
-    // eprintln!("{builder:#?}");
 
     // Generate the block of code to implement struct
     builder.into_token_stream()
