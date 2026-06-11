@@ -2,6 +2,8 @@ use quote::ToTokens;
 use syn::spanned::Spanned;
 use std::collections::HashMap;
 
+use crate::diagnostics::Diagnostic;
+
 /// Creates a `syn::Result::Err` for a particular span with a display message
 pub fn spanned_error<T>(span: proc_macro2::Span, message: &str) -> syn::Result<T> {
     syn::Result::Err(syn::Error::new(span, message))
@@ -193,10 +195,11 @@ impl BuilderStruct {
                 .filter(|a| a.key != "each")
                 .collect();
             if let Some(not_each_attr) = attr_not_each.first() {
-                spanned_error(
-                    not_each_attr.span, 
-           "expected `builder(each = \"...\")`"
-                )?;
+                let diagnostic: syn::Error = Diagnostic::span(not_each_attr.span)
+                    .message("expected `builder(each = \"...\")`")
+                    .help("check the arguments passed to the attribute for typos")
+                    .into();
+                Result::Err(diagnostic)?;
             }
             
 

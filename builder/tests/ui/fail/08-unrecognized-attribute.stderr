@@ -1,4 +1,6 @@
 error: expected `builder(each = "...")`
+         |
+         = help: check the arguments passed to the attribute for typos
   --> tests/ui/fail/08-unrecognized-attribute.rs:22:5
    |
 22 |     #[builder(eac = "arg")]
